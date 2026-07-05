@@ -1,15 +1,154 @@
-{
-  "version": 2,
-  "builds": [
-    {
-      "src": "server.js",
-      "use": "@vercel/node"
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AI Friend SaaS</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #0d0d0d;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        header {
+            padding: 15px;
+            background: #111;
+            border-bottom: 1px solid #222;
+            font-size: 18px;
+        }
+
+        #chat {
+            flex: 1;
+            padding: 10px;
+            overflow-y: auto;
+        }
+
+        .msg {
+            margin: 8px 0;
+            padding: 10px;
+            border-radius: 8px;
+            max-width: 70%;
+        }
+
+        .user {
+            background: #1e88e5;
+            align-self: flex-end;
+            margin-left: auto;
+        }
+
+        .ai {
+            background: #2e7d32;
+            align-self: flex-start;
+            margin-right: auto;
+        }
+
+        .inputBar {
+            display: flex;
+            padding: 10px;
+            background: #111;
+            border-top: 1px solid #222;
+        }
+
+        input {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 6px;
+            outline: none;
+        }
+
+        button {
+            margin-left: 10px;
+            padding: 12px 16px;
+            border: none;
+            background: #1e88e5;
+            color: white;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #1565c0;
+        }
+    </style>
+</head>
+
+<body>
+
+<header>
+    🤖 AI Friend SaaS
+</header>
+
+<div id="chat"></div>
+
+<div class="inputBar">
+    <input id="input" placeholder="Type message..." />
+    <button onclick="send()">Send</button>
+</div>
+
+<script>
+const API = "https://ai-friend-saas-backend.onrender.com";
+
+let token = localStorage.getItem("token");
+
+// ----------------------------
+// SEND MESSAGE
+// ----------------------------
+async function send() {
+    const input = document.getElementById("input");
+    const message = input.value.trim();
+
+    if (!message) return;
+
+    input.value = "";
+
+    addMsg("user", message);
+
+    try {
+        const res = await fetch(`${API}/chat`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                token,
+                message
+            })
+        });
+
+        const data = await res.json();
+
+        addMsg("ai", data.reply || data.error || "No response");
+
+    } catch (err) {
+        addMsg("ai", "⚠️ Connection error");
     }
-  ],
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "server.js"
-    }
-  ]
 }
+
+// ----------------------------
+// UI MESSAGE RENDER
+// ----------------------------
+function addMsg(type, text) {
+    const div = document.createElement("div");
+    div.className = `msg ${type}`;
+    div.innerText = (type === "user" ? "You: " : "AI: ") + text;
+
+    document.getElementById("chat").appendChild(div);
+    document.getElementById("chat").scrollTop = 999999;
+}
+
+// ----------------------------
+// ENTER KEY SUPPORT
+// ----------------------------
+document.getElementById("input").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") send();
+});
+</script>
+
+</body>
+</html>

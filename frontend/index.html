@@ -1,13 +1,97 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>frontend</title>
-  </head>
-  <body>
-    <div id="app"></div>
-    <script type="module" src="/src/main.js"></script>
-  </body>
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AI Friend SaaS</title>
+    <style>
+        body {
+            font-family: Arial;
+            background: #0f0f0f;
+            color: white;
+            margin: 0;
+            padding: 20px;
+        }
+
+        #chat {
+            height: 400px;
+            overflow-y: auto;
+            border: 1px solid #333;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+
+        .user { color: #4fc3f7; margin: 5px 0; }
+        .ai { color: #81c784; margin: 5px 0; }
+
+        input {
+            width: 75%;
+            padding: 10px;
+        }
+
+        button {
+            padding: 10px;
+            cursor: pointer;
+        }
+
+        .topbar {
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="topbar">
+    <h2>🤖 AI Friend SaaS</h2>
+</div>
+
+<div id="chat"></div>
+
+<input id="msg" placeholder="Type message..." />
+<button onclick="sendMessage()">Send</button>
+
+<script>
+const API = "https://ai-friend-saas-backend.onrender.com";
+
+let token = localStorage.getItem("token") || null;
+
+// simple demo auto-login fallback
+if (!token) {
+    console.log("No token found (user not logged in yet)");
+}
+
+async function sendMessage() {
+    const input = document.getElementById("msg");
+    const message = input.value;
+    if (!message) return;
+
+    input.value = "";
+
+    addMsg("user", message);
+
+    const res = await fetch(API + "/chat", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            token,
+            message
+        })
+    });
+
+    const data = await res.json();
+
+    addMsg("ai", data.reply || data.error || "No response");
+}
+
+function addMsg(role, text) {
+    const div = document.createElement("div");
+    div.className = role;
+    div.innerText = (role === "user" ? "You: " : "AI: ") + text;
+
+    document.getElementById("chat").appendChild(div);
+    document.getElementById("chat").scrollTop = 999999;
+}
+</script>
+
+</body>
 </html>
