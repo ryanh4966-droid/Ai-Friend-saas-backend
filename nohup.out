@@ -1,0 +1,177 @@
+◇ injected env (1) from .env // tip: ⌘ enable debugging { debug: true }
+AI Friend running on http://localhost:3000
+AuthenticationError: 401 Incorrect API key provided: your_api*****here. You can find your API key at https://platform.openai.com/account/api-keys.
+    at APIError.generate (file:///home/ryanh4966/ai-friend/node_modules/openai/core/error.mjs:44:20)
+    at OpenAI.makeStatusError (file:///home/ryanh4966/ai-friend/node_modules/openai/client.mjs:255:32)
+    at OpenAI.makeRequest (file:///home/ryanh4966/ai-friend/node_modules/openai/client.mjs:446:30)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async file:///home/ryanh4966/ai-friend/server.js:26:22 {
+  status: 401,
+  headers: Headers {
+    date: 'Tue, 26 May 2026 00:50:04 GMT',
+    'content-type': 'application/json; charset=utf-8',
+    'content-length': '267',
+    connection: 'keep-alive',
+    'set-cookie': '__cf_bm=9ymDMC2VNmOyswwlz4kg4WZt70EFBDLBugIhi_LLnCM-1779756604.3928745-1.0.1.1-5q2IvolB3CjB92Jjly88Gh2jrb8GEzdLEGSJOtxcp9p0d7RMBY_w3WZS2ZVGwIjcXqkur1_XVGuJdN36anRKGRRP4Y5zfMbo6uzAUx3U2BPTsFzedndkSALZu6MIpHx9; HttpOnly; SameSite=None; Secure; Path=/; Domain=api.openai.com; Expires=Tue, 26 May 2026 01:20:04 GMT, _cfuvid=Kcy9duk3JLbrKiU3Kd5Pnu6hlZcOxwO09jQnnwxBDqk-1779756604.3928745-1.0.1.1-0xygHq5V7Jfq00ZzgdR68FZUUxt4EUv2IfYS.fFKQL8; HttpOnly; SameSite=None; Secure; Path=/; Domain=api.openai.com',
+    'cf-ray': 'a018c8997a61732d-CLT',
+    'cf-cache-status': 'DYNAMIC',
+    server: 'cloudflare',
+    'strict-transport-security': 'max-age=31536000; includeSubDomains; preload',
+    vary: 'Origin',
+    'access-control-expose-headers': 'CF-Ray, CF-Ray',
+    'x-content-type-options': 'nosniff',
+    'x-openai-proxy-wasm': 'v0.1',
+    'x-request-id': 'req_2ac7c93ea7074b179e5f21e69355fb44',
+    'alt-svc': 'h3=":443"; ma=86400'
+  },
+  requestID: 'req_2ac7c93ea7074b179e5f21e69355fb44',
+  error: {
+    message: 'Incorrect API key provided: your_api*****here. You can find your API key at https://platform.openai.com/account/api-keys.',
+    type: 'invalid_request_error',
+    param: null,
+    code: 'invalid_api_key'
+  },
+  code: 'invalid_api_key',
+  param: null,
+  type: 'invalid_request_error'
+}
+AuthenticationError: 401 Incorrect API key provided: your_api*****here. You can find your API key at https://platform.openai.com/account/api-keys.
+    at APIError.generate (file:///home/ryanh4966/ai-friend/node_modules/openai/core/error.mjs:44:20)
+    at OpenAI.makeStatusError (file:///home/ryanh4966/ai-friend/node_modules/openai/client.mjs:255:32)
+    at OpenAI.makeRequest (file:///home/ryanh4966/ai-friend/node_modules/openai/client.mjs:446:30)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async file:///home/ryanh4966/ai-friend/server.js:26:22 {
+  status: 401,
+  headers: Headers {
+    date: 'Tue, 26 May 2026 00:58:09 GMT',
+    'content-type': 'application/json; charset=utf-8',
+    'content-length': '267',
+    connection: 'keep-alive',
+    'set-cookie': '__cf_bm=rXFbm_RS7lPLC79zqrw8rUMeVQfkA.cBymWs.rmUUPQ-1779757089.4882905-1.0.1.1-bsvxA4PRdSfQY0Ry1_x5JH38SRM0gMhLEyD2bdn.IYlwr160EG4a1VWNoB5i1rwMcS7dtZYualR74xNJmjcvWvpNFdFQwyPXTGJ3JxWRNIjvA7yTFmj0lrkOxYPMVvSF; HttpOnly; SameSite=None; Secure; Path=/; Domain=api.openai.com; Expires=Tue, 26 May 2026 01:28:09 GMT, _cfuvid=eraNsOF.Bdzajm6VgKbPr3o5jcCivPr00AP2_UAKIFs-1779757089.4882905-1.0.1.1-kv21HSlsET5y12zNVxbdnHdiS77EmgpcaeCyaaf52BQ; HttpOnly; SameSite=None; Secure; Path=/; Domain=api.openai.com',
+    'cf-ray': 'a018d4714abce41b-ATL',
+    'cf-cache-status': 'DYNAMIC',
+    server: 'cloudflare',
+    'strict-transport-security': 'max-age=31536000; includeSubDomains; preload',
+    vary: 'Origin',
+    'access-control-expose-headers': 'CF-Ray, CF-Ray',
+    'x-content-type-options': 'nosniff',
+    'x-openai-proxy-wasm': 'v0.1',
+    'x-request-id': 'req_caec159f77484a62ab5fdfebdf84792e',
+    'alt-svc': 'h3=":443"; ma=86400'
+  },
+  requestID: 'req_caec159f77484a62ab5fdfebdf84792e',
+  error: {
+    message: 'Incorrect API key provided: your_api*****here. You can find your API key at https://platform.openai.com/account/api-keys.',
+    type: 'invalid_request_error',
+    param: null,
+    code: 'invalid_api_key'
+  },
+  code: 'invalid_api_key',
+  param: null,
+  type: 'invalid_request_error'
+}
+AuthenticationError: 401 Incorrect API key provided: your_api*****here. You can find your API key at https://platform.openai.com/account/api-keys.
+    at APIError.generate (file:///home/ryanh4966/ai-friend/node_modules/openai/core/error.mjs:44:20)
+    at OpenAI.makeStatusError (file:///home/ryanh4966/ai-friend/node_modules/openai/client.mjs:255:32)
+    at OpenAI.makeRequest (file:///home/ryanh4966/ai-friend/node_modules/openai/client.mjs:446:30)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async file:///home/ryanh4966/ai-friend/server.js:26:22 {
+  status: 401,
+  headers: Headers {
+    date: 'Tue, 26 May 2026 00:59:03 GMT',
+    'content-type': 'application/json; charset=utf-8',
+    'content-length': '267',
+    connection: 'keep-alive',
+    'set-cookie': '__cf_bm=gEAyeMPk8bM1qqhTTje1CByZ5B3qOHwbXQePw8OasH4-1779757143.9321885-1.0.1.1-dtzbFdHYmPWmn5bqaOgBIf4nf3CgFwYA.3b0.x3vMil90a3TlLg67tpzldVOs8SsHFdzv284aUiKda1d7t6MC.8eaRJU9XMcEwqj8Y8Xnvh4TwgtuX4yjVBOIK0SGxsR; HttpOnly; SameSite=None; Secure; Path=/; Domain=api.openai.com; Expires=Tue, 26 May 2026 01:29:03 GMT, _cfuvid=WKnjoJ6_KkFNoKaqTxpKbF.HNspbj.LSdTMt0U89vAg-1779757143.9321885-1.0.1.1-Lfbae6FThwIEWP86BeUfECbp5iMIeeIb6Adeyrq1LgM; HttpOnly; SameSite=None; Secure; Path=/; Domain=api.openai.com',
+    'cf-ray': 'a018d5c59b431f6b-ATL',
+    'cf-cache-status': 'DYNAMIC',
+    server: 'cloudflare',
+    'strict-transport-security': 'max-age=31536000; includeSubDomains; preload',
+    vary: 'Origin',
+    'access-control-expose-headers': 'CF-Ray, CF-Ray',
+    'x-content-type-options': 'nosniff',
+    'x-openai-proxy-wasm': 'v0.1',
+    'x-request-id': 'req_cf12f011b2164c19affda9dd67dff923',
+    'alt-svc': 'h3=":443"; ma=86400'
+  },
+  requestID: 'req_cf12f011b2164c19affda9dd67dff923',
+  error: {
+    message: 'Incorrect API key provided: your_api*****here. You can find your API key at https://platform.openai.com/account/api-keys.',
+    type: 'invalid_request_error',
+    param: null,
+    code: 'invalid_api_key'
+  },
+  code: 'invalid_api_key',
+  param: null,
+  type: 'invalid_request_error'
+}
+AuthenticationError: 401 Incorrect API key provided: your_api*****here. You can find your API key at https://platform.openai.com/account/api-keys.
+    at APIError.generate (file:///home/ryanh4966/ai-friend/node_modules/openai/core/error.mjs:44:20)
+    at OpenAI.makeStatusError (file:///home/ryanh4966/ai-friend/node_modules/openai/client.mjs:255:32)
+    at OpenAI.makeRequest (file:///home/ryanh4966/ai-friend/node_modules/openai/client.mjs:446:30)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async file:///home/ryanh4966/ai-friend/server.js:26:22 {
+  status: 401,
+  headers: Headers {
+    date: 'Tue, 26 May 2026 00:59:45 GMT',
+    'content-type': 'application/json; charset=utf-8',
+    'content-length': '267',
+    connection: 'keep-alive',
+    'set-cookie': '__cf_bm=g2FUZXaWAkJRl85q6uYlnZAiU_RH56h0QSQEUMVfGaY-1779757185.0782487-1.0.1.1-iELzvqBc_yQsvndorpsaTttdvjzAuhoyLMc7GuqgWEHRWNdPa5WRTBxI9Fx10ntQIctF_9PnYWqxy8PH2_5ipiJHprwfPoxcrJWpVDyZaRAMLCBW9.f.hzp57GmrPIqO; HttpOnly; SameSite=None; Secure; Path=/; Domain=api.openai.com; Expires=Tue, 26 May 2026 01:29:45 GMT, _cfuvid=4EJEfcUvKRkAvuSrpNzs5Dtd4n.5L5esiLHHDAEnQDQ-1779757185.0782487-1.0.1.1-bnYt2889vMUXWcDkzuFMmczOK.BK57v1TPP1sG1r584; HttpOnly; SameSite=None; Secure; Path=/; Domain=api.openai.com',
+    'cf-ray': 'a018d6c6bc3590e6-CLT',
+    'cf-cache-status': 'DYNAMIC',
+    server: 'cloudflare',
+    'strict-transport-security': 'max-age=31536000; includeSubDomains; preload',
+    vary: 'Origin',
+    'access-control-expose-headers': 'CF-Ray, CF-Ray',
+    'x-content-type-options': 'nosniff',
+    'x-openai-proxy-wasm': 'v0.1',
+    'x-request-id': 'req_f2376f84fc244862ac04622acf2cb7e0',
+    'alt-svc': 'h3=":443"; ma=86400'
+  },
+  requestID: 'req_f2376f84fc244862ac04622acf2cb7e0',
+  error: {
+    message: 'Incorrect API key provided: your_api*****here. You can find your API key at https://platform.openai.com/account/api-keys.',
+    type: 'invalid_request_error',
+    param: null,
+    code: 'invalid_api_key'
+  },
+  code: 'invalid_api_key',
+  param: null,
+  type: 'invalid_request_error'
+}
+AuthenticationError: 401 Incorrect API key provided: your_api*****here. You can find your API key at https://platform.openai.com/account/api-keys.
+    at APIError.generate (file:///home/ryanh4966/ai-friend/node_modules/openai/core/error.mjs:44:20)
+    at OpenAI.makeStatusError (file:///home/ryanh4966/ai-friend/node_modules/openai/client.mjs:255:32)
+    at OpenAI.makeRequest (file:///home/ryanh4966/ai-friend/node_modules/openai/client.mjs:446:30)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async file:///home/ryanh4966/ai-friend/server.js:26:22 {
+  status: 401,
+  headers: Headers {
+    date: 'Tue, 26 May 2026 01:03:03 GMT',
+    'content-type': 'application/json; charset=utf-8',
+    'content-length': '267',
+    connection: 'keep-alive',
+    'set-cookie': '__cf_bm=qfw_n9ZHwCYYRUjSRXR4aRf3dm38oZfNCHS4rlyp6Wk-1779757383.7548122-1.0.1.1-304jqQuZbMxoBTawbmWtzV3ofYR_dLm5ibAxLSKwkaMD0R1E8pt2MPcl2DvrJMLxqQStzqIlmtriXvTG9ScdGfu0OJhiBxkjMavGqb74peirtRQESvxIyO7j6.YtVmJ0; HttpOnly; SameSite=None; Secure; Path=/; Domain=api.openai.com; Expires=Tue, 26 May 2026 01:33:03 GMT, _cfuvid=GB5qA1DnItIp5K5gwyP2QdGpxMIl9k732n4gtEYOsS4-1779757383.7548122-1.0.1.1-jirV2GtCIItgx9GOSU1cxDdZi96wj6yhRADBYMDHDB0; HttpOnly; SameSite=None; Secure; Path=/; Domain=api.openai.com',
+    'cf-ray': 'a018dba07d10278e-CLT',
+    'cf-cache-status': 'DYNAMIC',
+    server: 'cloudflare',
+    'strict-transport-security': 'max-age=31536000; includeSubDomains; preload',
+    vary: 'Origin',
+    'access-control-expose-headers': 'CF-Ray, CF-Ray',
+    'x-content-type-options': 'nosniff',
+    'x-openai-proxy-wasm': 'v0.1',
+    'x-request-id': 'req_f66260e78168410d90fdc0ff7c0f4abc',
+    'alt-svc': 'h3=":443"; ma=86400'
+  },
+  requestID: 'req_f66260e78168410d90fdc0ff7c0f4abc',
+  error: {
+    message: 'Incorrect API key provided: your_api*****here. You can find your API key at https://platform.openai.com/account/api-keys.',
+    type: 'invalid_request_error',
+    param: null,
+    code: 'invalid_api_key'
+  },
+  code: 'invalid_api_key',
+  param: null,
+  type: 'invalid_request_error'
+}

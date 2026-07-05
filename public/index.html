@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>AI Friend</title>
+  <style>
+    body { font-family: Arial; max-width: 700px; margin: auto; }
+    #chat { height: 400px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; }
+    .user { color: blue; }
+    .bot { color: green; }
+  </style>
+</head>
+<body>
+
+<h2>AI Friend</h2>
+
+<div id="chat"></div>
+
+<input id="msg" placeholder="Type..." />
+<button onclick="send()">Send</button>
+<button onclick="startVoice()">🎤 Talk</button>
+
+<script>
+const chat = document.getElementById("chat");
+
+function add(role, text) {
+  const div = document.createElement("div");
+  div.className = role;
+  div.innerText = role + ": " + text;
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+async function send(textInput) {
+  const input = textInput || document.getElementById("msg").value;
+  if (!input) return;
+
+  add("user", input);
+
+  const res = await fetch("/chat", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message: input })
+  });
+
+  const data = await res.json();
+
+  add("bot", data.reply);
+  speak(data.reply);
+
+  document.getElementById("msg").value = "";
+}
+
+// voice input
+function startVoice() {
+  const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+  recognition.lang = "en-US";
+
+  recognition.onresult = (event) => {
+    const text = event.results[0][0].transcript;
+    send(text);
+  };
+
+  recognition.start();
+}
+
+// voice output
+function speak(text) {
+  const utterance = new SpeechSynthesisUtterance(text);
+  speechSynthesis.speak(utterance);
+}
+</script>
+
+</body>
+</html>
