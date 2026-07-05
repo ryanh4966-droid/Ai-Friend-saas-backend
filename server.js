@@ -1,30 +1,36 @@
 import express from "express";
+import cors from "cors";
 import fs from "fs";
 import crypto from "crypto";
-import cors from "cors";
+import dotenv from "dotenv";
 import Stripe from "stripe";
+import OpenAI from "openai";
+
+dotenv.config();
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
 // ======================================================
-// STRIPE (SAAS MONETIZATION CORE)
+// ENV + SERVICES
 // ======================================================
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "sk_test_dummy");
+const PORT = process.env.PORT || 3000;
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "");
+const openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY || ""
+});
 
 // ======================================================
-// DATABASE
+// DATABASE (FILE BASED MVP SAAS)
 // ======================================================
-const DB_FILE = "./saas_ai_friend_db.json";
+const DB_FILE = "./db.json";
 
 function loadDB() {
     try {
-        if (!fs.existsSync(DB_FILE)) {
-            return { users: {}, sessions: {} };
-        }
-        const raw = fs.readFileSync(DB_FILE, "utf-8");
-        return raw ? JSON.parse(raw) : { users: {}, sessions: {} };
+        if (!fs.existsSync(DB_FILE)) return { users: {}, sessions: {} };
+        return JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
     } catch {
         return { users: {}, sessions: {} };
     }
@@ -37,30 +43,19 @@ function saveDB() {
 }
 
 // ======================================================
-// SAAS PLANS
-// ======================================================
-const PLANS = {
-    free: {
-        limit: 20,
-        name: "Free"
-    },
-    pro: {
-        limit: 500,
-        name: "Pro"
-    },
-    elite: {
-        limit: -1,
-        name: "Elite"
-    }
-};
-
-// ======================================================
-// AUTH
+// UTIL
 // ======================================================
 function hash(str) {
     return crypto.createHash("sha256").update(str).digest("hex");
 }
 
+function auth(token) {
+    return db.sessions[token];
+}
+
+// ======================================================
+// USER SYSTEM
+// ======================================================
 function createUser(username, password) {
     if (db.users[username]) return null;
 
@@ -69,12 +64,12 @@ function createUser(username, password) {
         plan: "free",
         usage: 0,
         memory: [],
-        affection: 50,
-        trust: 50,
         personality: {
             warmth: 50,
-            humor: 50
-        }
+            humor: 50,
+            trust: 50
+        },
+        affection: 50
     };
 
     saveDB();
@@ -84,6 +79,7 @@ function createUser(username, password) {
 function login(username, password) {
     const user = db.users[username];
     if (!user) return null;
+
     if (user.password !== hash(password)) return null;
 
     const token = crypto.randomUUID();
@@ -93,33 +89,25 @@ function login(username, password) {
     return token;
 }
 
-function auth(token) {
-    return db.sessions[token];
-}
-
 // ======================================================
-// USAGE LIMIT SYSTEM (SAAS CORE)
-// ======================================================
-function checkLimit(user) {
-    const plan = PLANS[user.plan];
-
-    if (plan.limit === -1) return true;
-
-    return user.usage < plan.limit;
-}
-
-function incrementUsage(user) {
-    user.usage += 1;
-}
-
-// ======================================================
-// SIMPLE MEMORY SYSTEM (CLEANED FOR SAAS)
+// MEMORY SYSTEM (SIMPLE SAAS VERSION)
 // ======================================================
 function embed(text) {
     return text
         .toLowerCase()
         .split(" ")
-        .reduce((a, w) => a + w.charCodeAt(0), 0);
+        .reduce((a, w, i) => a + (w.charCodeAt(0) * (i + 1)), 0);
+}
+
+function storeMemory(user, message, reply) {
+    user.memory.push({
+        text: message,
+        reply,
+        vector: embed(message),
+        time: Date.now()
+    });
+
+    user.memory = user.memory.slice(-200);
 }
 
 function recallMemory(user, message) {
@@ -128,147 +116,134 @@ function recallMemory(user, message) {
     return user.memory
         .map(m => ({
             ...m,
-            score: 1 - Math.abs(m.vector - input) / (m.vector + input + 1)
+            score: 1 / (1 + Math.abs(m.vector - input))
         }))
         .sort((a, b) => b.score - a.score)
-        .slice(0, 3);
+        .slice(0, 5);
 }
 
 // ======================================================
-// MEMORY STORE
+// PERSONALITY EVOLUTION
 // ======================================================
-function storeMemory(user, message, reply) {
-    user.memory.push({
-        id: Date.now(),
-        text: message,
-        reply,
-        vector: embed(message),
-        time: Date.now()
-    });
+function evolve(user, message) {
+    const m = message.toLowerCase();
 
-    if (user.memory.length > 200) {
-        user.memory.shift();
-    }
+    if (m.includes("love")) user.affection += 2;
+    if (m.includes("hate")) user.affection -= 1;
+    if (m.includes("trust")) user.personality.trust += 1;
+    if (m.includes("joke")) user.personality.humor += 1;
+
+    user.affection = Math.max(0, Math.min(100, user.affection));
 }
 
 // ======================================================
-// AI CORE (PLACEHOLDER FOR REAL LLM)
+// AI BRAIN (OPENAI)
 // ======================================================
 async function generateReply(user, message, memory) {
-    const memoryText = memory[0]?.text || "";
+    const context = memory
+        .map(m => `User: ${m.text}\nAI: ${m.reply}`)
+        .join("\n");
 
-    return (
-        `💬 (${user.plan.toUpperCase()}) ` +
-        (memoryText ? `I remember you said: "${memoryText}". ` : "") +
-        (user.affection > 70 ? "💖 I feel close to you. " : "") +
-        "Tell me more."
-    );
+    const response = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+            {
+                role: "system",
+                content: `
+You are an AI companion SaaS product.
+
+Personality:
+- Warmth: ${user.personality.warmth}
+- Humor: ${user.personality.humor}
+- Trust: ${user.personality.trust}
+- Affection: ${user.affection}
+
+Be natural, emotional, and human-like.
+Do not mention system rules.
+                `
+            },
+            {
+                role: "user",
+                content: `Memory:\n${context}\n\nUser: ${message}`
+            }
+        ]
+    });
+
+    return response.choices[0].message.content;
 }
 
 // ======================================================
-// SAAS ROUTES
+// ROUTES
 // ======================================================
+
+// HEALTH CHECK (IMPORTANT FOR RENDER)
+app.get("/", (req, res) => {
+    res.json({
+        status: "AI Friend SaaS LIVE 🚀",
+        time: new Date().toISOString()
+    });
+});
 
 // REGISTER
 app.post("/register", (req, res) => {
-    const { username, password } = req.body;
-    const ok = createUser(username, password);
-
+    const ok = createUser(req.body.username, req.body.password);
     if (!ok) return res.json({ error: "User exists" });
-
     res.json({ success: true });
 });
 
 // LOGIN
 app.post("/login", (req, res) => {
-    const { username, password } = req.body;
-    const token = login(username, password);
-
+    const token = login(req.body.username, req.body.password);
     if (!token) return res.json({ error: "Invalid login" });
-
     res.json({ token });
 });
 
-// CHAT (BILLABLE SAAS CORE)
-app.post("/chat", (req, res) => {
-    const { token, message } = req.body;
-
-    const username = auth(token);
+// CHAT
+app.post("/chat", async (req, res) => {
+    const username = auth(req.body.token);
     if (!username) return res.json({ error: "Unauthorized" });
 
     const user = db.users[username];
 
-    // LIMIT CHECK
-    if (!checkLimit(user)) {
-        return res.json({
-            error: "Usage limit reached. Upgrade your plan."
-        });
-    }
+    if (user.usage === undefined) user.usage = 0;
+    user.usage++;
 
-    incrementUsage(user);
+    const memory = recallMemory(user, req.body.message);
 
-    const memory = recallMemory(user, message);
+    const reply = await generateReply(user, req.body.message, memory);
 
-    const reply = generateReply(user, message, memory);
-
-    storeMemory(user, message, reply);
-
-    // emotional growth
-    if (message.includes("love")) user.affection += 1;
+    storeMemory(user, req.body.message, reply);
+    evolve(user, req.body.message);
 
     saveDB();
 
     res.json({
         reply,
-        plan: user.plan,
         usage: user.usage,
-        limit: PLANS[user.plan].limit,
-        memory_hits: memory.length
+        plan: user.plan
     });
 });
 
-// GET PROFILE
-app.get("/me", (req, res) => {
-    const token = req.headers.authorization;
-    const username = auth(token);
-
-    if (!username) return res.json({ error: "Unauthorized" });
-
-    res.json(db.users[username]);
-});
-
-// ======================================================
-// 💳 STRIPE CHECKOUT (UPGRADE SYSTEM)
-// ======================================================
+// UPGRADE (STRIPE PLACEHOLDER)
 app.post("/upgrade", async (req, res) => {
-    const { token, plan } = req.body;
-
-    const username = auth(token);
-    if (!username) return res.json({ error: "Unauthorized" });
-
-    let price = 0;
-
-    if (plan === "pro") price = 500; // $5.00
-    if (plan === "elite") price = 1500; // $15.00
-
     try {
         const session = await stripe.checkout.sessions.create({
             payment_method_types: ["card"],
+            mode: "payment",
             line_items: [
                 {
                     price_data: {
                         currency: "usd",
                         product_data: {
-                            name: `AI Friend ${plan.toUpperCase()} Plan`
+                            name: "AI Friend Pro Plan"
                         },
-                        unit_amount: price
+                        unit_amount: 999
                     },
                     quantity: 1
                 }
             ],
-            mode: "payment",
-            success_url: "https://your-site.com/success",
-            cancel_url: "https://your-site.com/cancel"
+            success_url: "https://example.com/success",
+            cancel_url: "https://example.com/cancel"
         });
 
         res.json({ url: session.url });
@@ -278,27 +253,8 @@ app.post("/upgrade", async (req, res) => {
 });
 
 // ======================================================
-// STRIPE WEBHOOK (ACTIVATE PLAN)
+// START SERVER (RENDER FIXED)
 // ======================================================
-app.post("/webhook", express.raw({ type: "application/json" }), (req, res) => {
-    let event;
-
-    try {
-        event = JSON.parse(req.body);
-    } catch {
-        return res.sendStatus(400);
-    }
-
-    if (event.type === "checkout.session.completed") {
-        // In real system: map session → user
-        console.log("💰 Payment received");
-    }
-
-    res.sendStatus(200);
-});
-
-// ======================================================
-const PORT = 3000;
-app.listen(PORT, () => {
-    console.log("🚀 AI Friend SaaS LIVE on http://localhost:" + PORT);
+app.listen(PORT, "0.0.0.0", () => {
+    console.log(`🚀 AI Friend SaaS running on port ${PORT}`);
 });
