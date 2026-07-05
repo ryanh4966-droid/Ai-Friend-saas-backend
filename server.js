@@ -1,10 +1,11 @@
 import express from "express";
 import cors from "cors";
-import fs from "fs";
-import crypto from "crypto";
 import dotenv from "dotenv";
-import Stripe from "stripe";
 import OpenAI from "openai";
+import Stripe from "stripe";
+import jwt from "jsonwebtoken";
+import bcrypt from "bcrypt";
+import sqlite3 from "sqlite3";
 
 dotenv.config();
 
@@ -12,249 +13,206 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// ======================================================
-// ENV + SERVICES
-// ======================================================
 const PORT = process.env.PORT || 3000;
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "");
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY || ""
+// =============================
+// SERVICES
+// =============================
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+const JWT_SECRET = process.env.JWT_SECRET || "dev_secret";
+
+// =============================
+// DATABASE (READY FOR POSTGRES MIGRATION)
+// =============================
+const db = new sqlite3.Database("./saas.db");
+
+db.serialize(() => {
+    db.run(`
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE,
+            password TEXT,
+            plan TEXT DEFAULT 'free',
+            messagesUsed INTEGER DEFAULT 0,
+            createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
 });
 
-// ======================================================
-// DATABASE (FILE BASED MVP SAAS)
-// ======================================================
-const DB_FILE = "./db.json";
+// =============================
+// SECURITY HELPERS
+// =============================
+function signToken(user) {
+    return jwt.sign({ id: user.id }, JWT_SECRET, { expiresIn: "7d" });
+}
 
-function loadDB() {
+function auth(req) {
     try {
-        if (!fs.existsSync(DB_FILE)) return { users: {}, sessions: {} };
-        return JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
+        const token = req.headers.authorization?.split(" ")[1];
+        return jwt.verify(token, JWT_SECRET);
     } catch {
-        return { users: {}, sessions: {} };
+        return null;
     }
 }
 
-let db = loadDB();
+// =============================
+// BASIC RATE LIMIT (INVESTOR REQUIREMENT)
+// =============================
+const requestLog = new Map();
 
-function saveDB() {
-    fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2));
+function rateLimit(ip) {
+    const now = Date.now();
+    const window = 60 * 1000;
+
+    if (!requestLog.has(ip)) requestLog.set(ip, []);
+    const times = requestLog.get(ip).filter(t => now - t < window);
+
+    times.push(now);
+    requestLog.set(ip, times);
+
+    return times.length < 30; // 30 req/min
 }
 
-// ======================================================
-// UTIL
-// ======================================================
-function hash(str) {
-    return crypto.createHash("sha256").update(str).digest("hex");
-}
-
-function auth(token) {
-    return db.sessions[token];
-}
-
-// ======================================================
-// USER SYSTEM
-// ======================================================
-function createUser(username, password) {
-    if (db.users[username]) return null;
-
-    db.users[username] = {
-        password: hash(password),
-        plan: "free",
-        usage: 0,
-        memory: [],
-        personality: {
-            warmth: 50,
-            humor: 50,
-            trust: 50
-        },
-        affection: 50
-    };
-
-    saveDB();
-    return true;
-}
-
-function login(username, password) {
-    const user = db.users[username];
-    if (!user) return null;
-
-    if (user.password !== hash(password)) return null;
-
-    const token = crypto.randomUUID();
-    db.sessions[token] = username;
-
-    saveDB();
-    return token;
-}
-
-// ======================================================
-// MEMORY SYSTEM (SIMPLE SAAS VERSION)
-// ======================================================
-function embed(text) {
-    return text
-        .toLowerCase()
-        .split(" ")
-        .reduce((a, w, i) => a + (w.charCodeAt(0) * (i + 1)), 0);
-}
-
-function storeMemory(user, message, reply) {
-    user.memory.push({
-        text: message,
-        reply,
-        vector: embed(message),
-        time: Date.now()
-    });
-
-    user.memory = user.memory.slice(-200);
-}
-
-function recallMemory(user, message) {
-    const input = embed(message);
-
-    return user.memory
-        .map(m => ({
-            ...m,
-            score: 1 / (1 + Math.abs(m.vector - input))
-        }))
-        .sort((a, b) => b.score - a.score)
-        .slice(0, 5);
-}
-
-// ======================================================
-// PERSONALITY EVOLUTION
-// ======================================================
-function evolve(user, message) {
-    const m = message.toLowerCase();
-
-    if (m.includes("love")) user.affection += 2;
-    if (m.includes("hate")) user.affection -= 1;
-    if (m.includes("trust")) user.personality.trust += 1;
-    if (m.includes("joke")) user.personality.humor += 1;
-
-    user.affection = Math.max(0, Math.min(100, user.affection));
-}
-
-// ======================================================
-// AI BRAIN (OPENAI)
-// ======================================================
-async function generateReply(user, message, memory) {
-    const context = memory
-        .map(m => `User: ${m.text}\nAI: ${m.reply}`)
-        .join("\n");
-
-    const response = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: [
-            {
-                role: "system",
-                content: `
-You are an AI companion SaaS product.
-
-Personality:
-- Warmth: ${user.personality.warmth}
-- Humor: ${user.personality.humor}
-- Trust: ${user.personality.trust}
-- Affection: ${user.affection}
-
-Be natural, emotional, and human-like.
-Do not mention system rules.
-                `
-            },
-            {
-                role: "user",
-                content: `Memory:\n${context}\n\nUser: ${message}`
-            }
-        ]
-    });
-
-    return response.choices[0].message.content;
-}
-
-// ======================================================
-// ROUTES
-// ======================================================
-
-// HEALTH CHECK (IMPORTANT FOR RENDER)
+// =============================
+// HEALTH + METRICS (IMPORTANT FOR INVESTORS)
+// =============================
 app.get("/", (req, res) => {
-    res.json({
-        status: "AI Friend SaaS LIVE 🚀",
-        time: new Date().toISOString()
+    db.get("SELECT COUNT(*) as users FROM users", [], (err, row) => {
+        res.json({
+            status: "AI SaaS LIVE 🚀",
+            users: row?.users || 0,
+            uptime: process.uptime()
+        });
     });
 });
 
+// =============================
 // REGISTER
-app.post("/register", (req, res) => {
-    const ok = createUser(req.body.username, req.body.password);
-    if (!ok) return res.json({ error: "User exists" });
-    res.json({ success: true });
+// =============================
+app.post("/register", async (req, res) => {
+    const hash = await bcrypt.hash(req.body.password, 10);
+
+    db.run(
+        "INSERT INTO users (username, password) VALUES (?, ?)",
+        [req.body.username, hash],
+        (err) => {
+            if (err) return res.json({ error: "User exists" });
+            res.json({ ok: true });
+        }
+    );
 });
 
+// =============================
 // LOGIN
+// =============================
 app.post("/login", (req, res) => {
-    const token = login(req.body.username, req.body.password);
-    if (!token) return res.json({ error: "Invalid login" });
-    res.json({ token });
+    db.get(
+        "SELECT * FROM users WHERE username = ?",
+        [req.body.username],
+        async (err, user) => {
+            if (!user) return res.json({ error: "not found" });
+
+            const ok = await bcrypt.compare(req.body.password, user.password);
+            if (!ok) return res.json({ error: "wrong password" });
+
+            res.json({
+                token: signToken(user),
+                plan: user.plan
+            });
+        }
+    );
 });
 
-// CHAT
-app.post("/chat", async (req, res) => {
-    const username = auth(req.body.token);
-    if (!username) return res.json({ error: "Unauthorized" });
+// =============================
+// CHAT (CORE PRODUCT)
+// =============================
+app.post("/chat", (req, res) => {
+    const ip = req.ip;
 
-    const user = db.users[username];
+    if (!rateLimit(ip)) {
+        return res.json({ error: "Rate limit exceeded" });
+    }
 
-    if (user.usage === undefined) user.usage = 0;
-    user.usage++;
+    const userData = auth(req);
+    if (!userData) return res.json({ error: "Unauthorized" });
 
-    const memory = recallMemory(user, req.body.message);
+    db.get("SELECT * FROM users WHERE id = ?", [userData.id], async (err, user) => {
 
-    const reply = await generateReply(user, req.body.message, memory);
+        if (!user) return res.json({ error: "User not found" });
 
-    storeMemory(user, req.body.message, reply);
-    evolve(user, req.body.message);
+        // FREE TIER LIMIT
+        if (user.plan === "free" && user.messagesUsed >= 25) {
+            return res.json({
+                error: "Free limit reached",
+                upgradeRequired: true
+            });
+        }
 
-    saveDB();
-
-    res.json({
-        reply,
-        usage: user.usage,
-        plan: user.plan
-    });
-});
-
-// UPGRADE (STRIPE PLACEHOLDER)
-app.post("/upgrade", async (req, res) => {
-    try {
-        const session = await stripe.checkout.sessions.create({
-            payment_method_types: ["card"],
-            mode: "payment",
-            line_items: [
+        const response = await openai.chat.completions.create({
+            model: "gpt-4o-mini",
+            messages: [
                 {
-                    price_data: {
-                        currency: "usd",
-                        product_data: {
-                            name: "AI Friend Pro Plan"
-                        },
-                        unit_amount: 999
-                    },
-                    quantity: 1
+                    role: "system",
+                    content: "You are a premium AI SaaS assistant product."
+                },
+                {
+                    role: "user",
+                    content: req.body.message
                 }
-            ],
-            success_url: "https://example.com/success",
-            cancel_url: "https://example.com/cancel"
+            ]
         });
 
-        res.json({ url: session.url });
-    } catch (err) {
-        res.json({ error: err.message });
-    }
+        db.run(
+            "UPDATE users SET messagesUsed = messagesUsed + 1 WHERE id = ?",
+            [user.id]
+        );
+
+        res.json({
+            reply: response.choices[0].message.content,
+            plan: user.plan,
+            usage: user.messagesUsed + 1
+        });
+    });
 });
 
-// ======================================================
-// START SERVER (RENDER FIXED)
-// ======================================================
+// =============================
+// STRIPE SUBSCRIPTION (REAL SAAS MODEL)
+// =============================
+app.post("/create-checkout", async (req, res) => {
+    const session = await stripe.checkout.sessions.create({
+        mode: "subscription",
+        payment_method_types: ["card"],
+        line_items: [{
+            price_data: {
+                currency: "usd",
+                product_data: {
+                    name: "AI SaaS Pro"
+                },
+                unit_amount: 999,
+                recurring: { interval: "month" }
+            },
+            quantity: 1
+        }],
+        success_url: "https://your-frontend.com/success",
+        cancel_url: "https://your-frontend.com/cancel"
+    });
+
+    res.json({ url: session.url });
+});
+
+// =============================
+// STRIPE WEBHOOK (CRITICAL INVESTOR REQUIREMENT)
+// =============================
+app.post("/webhook", express.raw({ type: "application/json" }), (req, res) => {
+    // placeholder for real Stripe event handling
+    console.log("Webhook received");
+    res.json({ received: true });
+});
+
+// =============================
+// START SERVER
+// =============================
 app.listen(PORT, "0.0.0.0", () => {
-    console.log(`🚀 AI Friend SaaS running on port ${PORT}`);
+    console.log("🚀 INVESTOR-GRADE AI SAAS RUNNING ON", PORT);
 });

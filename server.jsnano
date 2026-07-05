@@ -1,0 +1,207 @@
+import express from "express";
+import cors from "cors";
+import dotenv from "dotenv";
+import OpenAI from "openai";
+import Stripe from "stripe";
+import jwt from "jsonwebtoken";
+import bcrypt from "bcrypt";
+import sqlite3 from "sqlite3";
+
+dotenv.config();
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+const PORT = process.env.PORT || 3000;
+
+// =========================
+// SAFETY: BASIC CRASH GUARD
+// =========================
+process.on("uncaughtException", (err) => {
+    console.log("❌ Uncaught Exception:", err.message);
+});
+
+// =========================
+// SERVICES
+// =========================
+const openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY || ""
+});
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "");
+
+const JWT_SECRET = process.env.JWT_SECRET || "dev_secret";
+
+// =========================
+// DATABASE
+// =========================
+const db = new sqlite3.Database("./saas.db");
+
+db.serialize(() => {
+    db.run(`
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE,
+            password TEXT,
+            plan TEXT DEFAULT 'free',
+            messagesUsed INTEGER DEFAULT 0
+        )
+    `);
+});
+
+// =========================
+// AUTH
+// =========================
+function sign(user) {
+    return jwt.sign({ id: user.id }, JWT_SECRET);
+}
+
+function auth(req) {
+    try {
+        const token = req.headers.authorization?.split(" ")[1];
+        return jwt.verify(token, JWT_SECRET);
+    } catch {
+        return null;
+    }
+}
+
+// =========================
+// HEALTH CHECK (RENDER TEST ROUTE)
+// =========================
+app.get("/", (req, res) => {
+    res.json({
+        status: "AI SaaS LIVE 🚀",
+        uptime: process.uptime()
+    });
+});
+
+// =========================
+// REGISTER
+// =========================
+app.post("/register", async (req, res) => {
+    try {
+        const hash = await bcrypt.hash(req.body.password, 10);
+
+        db.run(
+            "INSERT INTO users (username, password) VALUES (?, ?)",
+            [req.body.username, hash],
+            (err) => {
+                if (err) return res.json({ error: "User exists" });
+                res.json({ ok: true });
+            }
+        );
+    } catch (e) {
+        res.json({ error: "register failed" });
+    }
+});
+
+// =========================
+// LOGIN
+// =========================
+app.post("/login", (req, res) => {
+    db.get(
+        "SELECT * FROM users WHERE username = ?",
+        [req.body.username],
+        async (err, user) => {
+            if (!user) return res.json({ error: "not found" });
+
+            const ok = await bcrypt.compare(req.body.password, user.password);
+            if (!ok) return res.json({ error: "wrong password" });
+
+            res.json({
+                token: sign(user),
+                plan: user.plan
+            });
+        }
+    );
+});
+
+// =========================
+// CHAT (CORE AI)
+// =========================
+app.post("/chat", (req, res) => {
+    const userData = auth(req);
+    if (!userData) return res.json({ error: "unauthorized" });
+
+    db.get("SELECT * FROM users WHERE id = ?", [userData.id], async (err, user) => {
+
+        if (!user) return res.json({ error: "user not found" });
+
+        // free limit
+        if (user.plan === "free" && user.messagesUsed >= 20) {
+            return res.json({
+                error: "Free limit reached. Upgrade required."
+            });
+        }
+
+        try {
+            const response = await openai.chat.completions.create({
+                model: "gpt-4o-mini",
+                messages: [
+                    {
+                        role: "system",
+                        content: "You are a helpful AI SaaS assistant."
+                    },
+                    {
+                        role: "user",
+                        content: req.body.message
+                    }
+                ]
+            });
+
+            db.run(
+                "UPDATE users SET messagesUsed = messagesUsed + 1 WHERE id = ?",
+                [user.id]
+            );
+
+            res.json({
+                reply: response.choices[0].message.content,
+                plan: user.plan,
+                used: user.messagesUsed + 1
+            });
+
+        } catch (e) {
+            res.json({ error: "AI request failed" });
+        }
+    });
+});
+
+// =========================
+// STRIPE CHECKOUT
+// =========================
+app.post("/create-checkout", async (req, res) => {
+    try {
+        const session = await stripe.checkout.sessions.create({
+            mode: "subscription",
+            payment_method_types: ["card"],
+            line_items: [
+                {
+                    price_data: {
+                        currency: "usd",
+                        product_data: {
+                            name: "AI SaaS Pro"
+                        },
+                        unit_amount: 999,
+                        recurring: { interval: "month" }
+                    },
+                    quantity: 1
+                }
+            ],
+            success_url: "https://your-frontend-url.com",
+            cancel_url: "https://your-frontend-url.com"
+        });
+
+        res.json({ url: session.url });
+
+    } catch (e) {
+        res.json({ error: "stripe failed" });
+    }
+});
+
+// =========================
+// START SERVER (RENDER SAFE)
+// =========================
+app.listen(PORT, "0.0.0.0", () => {
+    console.log("🚀 AI SaaS RUNNING ON PORT", PORT);
+});

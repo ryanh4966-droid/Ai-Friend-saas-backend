@@ -1,96 +1,189 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>AI Friend SaaS</title>
-    <style>
-        body {
-            font-family: Arial;
-            background: #0f0f0f;
-            color: white;
-            margin: 0;
-            padding: 20px;
-        }
+<title>AI SaaS Dashboard</title>
 
-        #chat {
-            height: 400px;
-            overflow-y: auto;
-            border: 1px solid #333;
-            padding: 10px;
-            margin-bottom: 10px;
-        }
-
-        .user { color: #4fc3f7; margin: 5px 0; }
-        .ai { color: #81c784; margin: 5px 0; }
-
-        input {
-            width: 75%;
-            padding: 10px;
-        }
-
-        button {
-            padding: 10px;
-            cursor: pointer;
-        }
-
-        .topbar {
-            margin-bottom: 10px;
-        }
-    </style>
-</head>
-<body>
-
-<div class="topbar">
-    <h2>🤖 AI Friend SaaS</h2>
-</div>
-
-<div id="chat"></div>
-
-<input id="msg" placeholder="Type message..." />
-<button onclick="sendMessage()">Send</button>
-
-<script>
-const API = "https://ai-friend-saas-backend.onrender.com";
-
-let token = localStorage.getItem("token") || null;
-
-// simple demo auto-login fallback
-if (!token) {
-    console.log("No token found (user not logged in yet)");
+<style>
+body {
+    font-family: Arial;
+    background: #0f1115;
+    color: white;
+    margin: 0;
 }
 
-async function sendMessage() {
-    const input = document.getElementById("msg");
-    const message = input.value;
-    if (!message) return;
+.container {
+    display: flex;
+    height: 100vh;
+}
 
-    input.value = "";
+/* SIDEBAR */
+.sidebar {
+    width: 220px;
+    background: #151922;
+    padding: 20px;
+}
 
-    addMsg("user", message);
+.sidebar h2 {
+    color: #4fc3f7;
+}
+
+/* MAIN */
+.main {
+    flex: 1;
+    padding: 20px;
+}
+
+/* CARDS */
+.cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 15px;
+}
+
+.card {
+    background: #1b2030;
+    padding: 15px;
+    border-radius: 10px;
+}
+
+.card h3 {
+    margin: 0;
+    color: #81c784;
+}
+
+/* CHAT */
+#chat {
+    margin-top: 20px;
+    height: 300px;
+    overflow-y: auto;
+    background: #111521;
+    padding: 10px;
+    border-radius: 10px;
+}
+
+.user { color: #4fc3f7; }
+.ai { color: #81c784; }
+
+input, button {
+    width: 100%;
+    padding: 10px;
+    margin-top: 10px;
+    border-radius: 5px;
+    border: none;
+}
+
+button {
+    background: #4fc3f7;
+    cursor: pointer;
+}
+</style>
+
+</head>
+
+<body>
+
+<div class="container">
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+    <h2>AI SaaS</h2>
+    <p id="plan">Plan: Free</p>
+    <button onclick="upgrade()">Upgrade Pro</button>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+<h1>Dashboard</h1>
+
+<div class="cards">
+    <div class="card">
+        <h3 id="users">--</h3>
+        <p>Total Users</p>
+    </div>
+
+    <div class="card">
+        <h3 id="usage">--</h3>
+        <p>Messages Used</p>
+    </div>
+
+    <div class="card">
+        <h3 id="status">LIVE</h3>
+        <p>System Status</p>
+    </div>
+</div>
+
+<!-- CHAT -->
+<div id="chat"></div>
+
+<input id="msg" placeholder="Ask AI...">
+<button onclick="send()">Send</button>
+
+</div>
+</div>
+
+<script>
+
+const API = "https://ai-friend-saas-backend.onrender.com";
+let token = localStorage.getItem("token");
+
+// --------------------
+// LOAD DASH DATA
+// --------------------
+async function load(){
+    const res = await fetch(API);
+    const data = await res.json();
+
+    users.innerText = data.users;
+}
+
+// --------------------
+// CHAT
+// --------------------
+async function send(){
+    const m = msg.value;
+    msg.value = "";
+
+    add("user", m);
 
     const res = await fetch(API + "/chat", {
         method: "POST",
         headers: {
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + token
         },
-        body: JSON.stringify({
-            token,
-            message
-        })
+        body: JSON.stringify({ message: m })
     });
 
     const data = await res.json();
 
-    addMsg("ai", data.reply || data.error || "No response");
+    add("ai", data.reply || data.error);
 }
 
-function addMsg(role, text) {
+// --------------------
+// UI
+// --------------------
+function add(type, text){
     const div = document.createElement("div");
-    div.className = role;
-    div.innerText = (role === "user" ? "You: " : "AI: ") + text;
-
-    document.getElementById("chat").appendChild(div);
-    document.getElementById("chat").scrollTop = 999999;
+    div.className = type;
+    div.innerText = text;
+    chat.appendChild(div);
 }
+
+// --------------------
+// UPGRADE FLOW
+// --------------------
+async function upgrade(){
+    const res = await fetch(API + "/create-checkout", {
+        method: "POST"
+    });
+
+    const data = await res.json();
+    window.location.href = data.url;
+}
+
+load();
+
 </script>
 
 </body>
